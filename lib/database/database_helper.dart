@@ -118,6 +118,9 @@ class DatabaseHelper {
 
   // ---------------- SQLITE DESKTOP DATABASE ----------------
   Future<Database> get database async {
+    if (kIsWeb) {
+      throw UnsupportedError('SQLite FFI database is not used on Web');
+    }
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
