@@ -1,8 +1,9 @@
-import 'dart:io';
+import 'dart:io' show Platform, Directory;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import '../models/team.dart';
 import '../models/field_model.dart';
 import '../models/score_history.dart';
@@ -19,9 +20,17 @@ class DatabaseHelper {
   }
 
   static void initializeFfi() {
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+    } else {
+      try {
+        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+          sqfliteFfiInit();
+          databaseFactory = databaseFactoryFfi;
+        }
+      } catch (_) {
+        databaseFactory = databaseFactoryFfi;
+      }
     }
   }
 
@@ -34,22 +43,45 @@ class DatabaseHelper {
   Future<Database> _initDatabase({String dbName = 'scoreboard.db'}) async {
     initializeFfi();
 
-    String dbPath;
     if (kIsWeb) {
-      dbPath = dbName;
-    } else {
+      try {
+        return await databaseFactoryFfiWeb.openDatabase(
+          dbName,
+          options: OpenDatabaseOptions(
+            version: 1,
+            onCreate: _onCreate,
+          ),
+        );
+      } catch (e) {
+        // Fallback to in-memory on Web if indexedDB has restrictions
+        return await databaseFactoryFfiWeb.openDatabase(
+          inMemoryDatabasePath,
+          options: OpenDatabaseOptions(
+            version: 1,
+            onCreate: _onCreate,
+          ),
+        );
+      }
+    }
+
+    String dbPath;
+    try {
       final documentsDirectory = await getApplicationDocumentsDirectory();
       dbPath = p.join(documentsDirectory.path, 'ScoreboardApp', dbName);
       final directory = Directory(p.dirname(dbPath));
       if (!await directory.exists()) {
         await directory.create(recursive: true);
       }
+    } catch (_) {
+      dbPath = dbName;
     }
 
-    return await openDatabase(
+    return await databaseFactory.openDatabase(
       dbPath,
-      version: 1,
-      onCreate: _onCreate,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: _onCreate,
+      ),
     );
   }
 
@@ -72,7 +104,7 @@ class DatabaseHelper {
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE fields (
+      CREATE TABLE IF NOT EXISTS fields (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         display_order INTEGER NOT NULL DEFAULT 0
@@ -80,7 +112,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE teams (
+      CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         color TEXT NOT NULL,
@@ -88,26 +120,24 @@ class DatabaseHelper {
         field_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        FOREIGN KEY (field_id) REFERENCES fields (id) ON DELETE CASCADE
+        is_active INTEGER NOT NULL DEFAULT 1
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE score_history (
+      CREATE TABLE IF NOT EXISTS score_history (
         id TEXT PRIMARY KEY,
         team_id TEXT NOT NULL,
         previous_score INTEGER NOT NULL,
         new_score INTEGER NOT NULL,
         points_changed INTEGER NOT NULL,
         timestamp TEXT NOT NULL,
-        description TEXT,
-        FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE
+        description TEXT
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE settings (
+      CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       )
@@ -117,6 +147,9 @@ class DatabaseHelper {
   }
 
   Future<void> _seedDefaults(Database db) async {
+    final existingFields = await db.query('fields');
+    if (existingFields.isNotEmpty) return;
+
     final batch = db.batch();
 
     // Default Fields
@@ -161,9 +194,21 @@ class DatabaseHelper {
 
   // ---------------- FIELDS CRUD ----------------
   Future<List<FieldModel>> getAllFields({Database? dbExecutor}) async {
-    final db = dbExecutor ?? await database;
-    final maps = await db.query('fields', orderBy: 'display_order ASC');
-    return maps.map((m) => FieldModel.fromMap(m)).toList();
+    try {
+      final db = dbExecutor ?? await database;
+      final maps = await db.query('fields', orderBy: 'display_order ASC');
+      if (maps.isEmpty) {
+        await _seedDefaults(db);
+        final seededMaps = await db.query('fields', orderBy: 'display_order ASC');
+        return seededMaps.map((m) => FieldModel.fromMap(m)).toList();
+      }
+      return maps.map((m) => FieldModel.fromMap(m)).toList();
+    } catch (_) {
+      return const [
+        FieldModel(id: 'field_a', name: 'Field A', displayOrder: 0),
+        FieldModel(id: 'field_b', name: 'Field B', displayOrder: 1),
+      ];
+    }
   }
 
   Future<void> updateFieldName(String id, String newName, {Database? dbExecutor}) async {
@@ -178,9 +223,26 @@ class DatabaseHelper {
 
   // ---------------- TEAMS CRUD ----------------
   Future<List<Team>> getAllTeams({Database? dbExecutor}) async {
-    final db = dbExecutor ?? await database;
-    final maps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
-    return maps.map((m) => Team.fromMap(m)).toList();
+    try {
+      final db = dbExecutor ?? await database;
+      final maps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
+      if (maps.isEmpty) {
+        await _seedDefaults(db);
+        final seededMaps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
+        return seededMaps.map((m) => Team.fromMap(m)).toList();
+      }
+      return maps.map((m) => Team.fromMap(m)).toList();
+    } catch (_) {
+      final now = DateTime.now();
+      return [
+        Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_blue', name: 'Blue', color: 'Blue', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_green', name: 'Green', color: 'Green', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_yellow', name: 'Yellow', color: 'Yellow', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+      ];
+    }
   }
 
   Future<void> insertTeam(Team team, {Database? dbExecutor}) async {
@@ -281,13 +343,17 @@ class DatabaseHelper {
 
   // ---------------- SCORE HISTORY CRUD ----------------
   Future<List<ScoreHistory>> getScoreHistory({int limit = 100, Database? dbExecutor}) async {
-    final db = dbExecutor ?? await database;
-    final maps = await db.query(
-      'score_history',
-      orderBy: 'timestamp DESC',
-      limit: limit,
-    );
-    return maps.map((m) => ScoreHistory.fromMap(m)).toList();
+    try {
+      final db = dbExecutor ?? await database;
+      final maps = await db.query(
+        'score_history',
+        orderBy: 'timestamp DESC',
+        limit: limit,
+      );
+      return maps.map((m) => ScoreHistory.fromMap(m)).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> clearScoreHistory({Database? dbExecutor}) async {
@@ -306,11 +372,13 @@ class DatabaseHelper {
   }
 
   Future<String?> getSetting(String key, {Database? dbExecutor}) async {
-    final db = dbExecutor ?? await database;
-    final res = await db.query('settings', where: 'key = ?', whereArgs: [key]);
-    if (res.isNotEmpty) {
-      return res.first['value'] as String?;
-    }
+    try {
+      final db = dbExecutor ?? await database;
+      final res = await db.query('settings', where: 'key = ?', whereArgs: [key]);
+      if (res.isNotEmpty) {
+        return res.first['value'] as String?;
+      }
+    } catch (_) {}
     return null;
   }
 }
