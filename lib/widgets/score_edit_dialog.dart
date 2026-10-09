@@ -95,6 +95,39 @@ class _ScoreEditDialogState extends ConsumerState<ScoreEditDialog> {
     }
   }
 
+  Future<void> _confirmDeleteTeam() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131B2E),
+        title: Text('Remove ${widget.team.name}?', style: const TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to remove team "${widget.team.name}" from the scoreboard?',
+          style: const TextStyle(color: Color(0xFFCBD5E1)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove Team'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await ref.read(teamsProvider.notifier).deleteTeam(widget.team.id);
+      Navigator.of(context).pop();
+    }
+  }
+
   void _save() {
     final delta = _pendingScore - widget.team.score;
     if (delta == 0) {
@@ -151,6 +184,12 @@ class _ScoreEditDialogState extends ConsumerState<ScoreEditDialog> {
                       ),
                     ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFEF4444)),
+                    tooltip: 'Remove Team from Scoreboard',
+                    onPressed: _confirmDeleteTeam,
+                  ),
+                  const SizedBox(width: 6),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20, color: Color(0xFF94A3B8)),
                     padding: EdgeInsets.zero,
@@ -248,12 +287,25 @@ class _ScoreEditDialogState extends ConsumerState<ScoreEditDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton(
-                    onPressed: _confirmReset,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFEF4444),
-                    ),
-                    child: const Text('Reset to 0'),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        label: const Text('Remove'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFEF4444),
+                        ),
+                        onPressed: _confirmDeleteTeam,
+                      ),
+                      const SizedBox(width: 4),
+                      TextButton(
+                        onPressed: _confirmReset,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFF59E0B),
+                        ),
+                        child: const Text('Reset to 0'),
+                      ),
+                    ],
                   ),
                   Row(
                     children: [
@@ -267,7 +319,7 @@ class _ScoreEditDialogState extends ConsumerState<ScoreEditDialog> {
                           backgroundColor: const Color(0xFF3B82F6),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
                         onPressed: _save,
                         child: const Text('Save Score', style: TextStyle(fontWeight: FontWeight.bold)),

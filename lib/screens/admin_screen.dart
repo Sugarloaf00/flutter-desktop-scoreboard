@@ -168,7 +168,30 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     );
 
     if (confirm == true) {
-      ref.read(teamsProvider.notifier).deleteTeam(team.id);
+      await ref.read(teamsProvider.notifier).deleteTeam(team.id);
+    }
+  }
+
+  Future<void> _confirmRestoreDefaultTeams() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore Default Teams?'),
+        content: const Text(
+          'This will restore the 6 default colored teams (Red, Blue, Green in Field A; Yellow, Orange, Purple in Field B).',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restore Defaults'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(teamsProvider.notifier).restoreDefaultTeams();
     }
   }
 
@@ -494,10 +517,20 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Participating Teams', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Team'),
-                        onPressed: () => _showAddEditTeamDialog(),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.restore, size: 16),
+                            label: const Text('Restore Defaults'),
+                            onPressed: _confirmRestoreDefaultTeams,
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Team'),
+                            onPressed: () => _showAddEditTeamDialog(),
+                          ),
+                        ],
                       ),
                     ],
                   ),

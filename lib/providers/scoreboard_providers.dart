@@ -157,6 +157,12 @@ class TeamsNotifier extends AsyncNotifier<List<Team>> {
     await repo.deleteTeam(teamId);
     ref.invalidateSelf();
   }
+
+  Future<void> restoreDefaultTeams() async {
+    final repo = ref.read(scoreboardRepositoryProvider);
+    await repo.restoreDefaultTeams();
+    ref.invalidateSelf();
+  }
 }
 
 final teamsProvider = AsyncNotifierProvider<TeamsNotifier, List<Team>>(TeamsNotifier.new);

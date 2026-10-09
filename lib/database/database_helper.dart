@@ -47,10 +47,14 @@ class DatabaseHelper {
         _webFields = list.map((m) => FieldModel.fromMap(Map<String, dynamic>.from(m))).toList();
       }
 
-      final teamsJson = prefs.getString('web_teams');
-      if (teamsJson != null) {
-        final List list = jsonDecode(teamsJson);
-        _webTeams = list.map((m) => Team.fromMap(Map<String, dynamic>.from(m))).toList();
+      if (prefs.containsKey('web_teams')) {
+        final teamsJson = prefs.getString('web_teams');
+        if (teamsJson != null) {
+          final List list = jsonDecode(teamsJson);
+          _webTeams = list.map((m) => Team.fromMap(Map<String, dynamic>.from(m))).toList();
+        } else {
+          _webTeams = [];
+        }
       }
 
       final historyJson = prefs.getString('web_history');
@@ -72,7 +76,7 @@ class DatabaseHelper {
       ];
     }
 
-    if (_webTeams == null || _webTeams!.isEmpty) {
+    if (_webTeams == null) {
       final now = DateTime.now();
       _webTeams = [
         Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
@@ -82,6 +86,7 @@ class DatabaseHelper {
         Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
         Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
       ];
+      _saveWebTeams();
     }
 
     _webHistory ??= [];
@@ -312,21 +317,17 @@ class DatabaseHelper {
       final db = dbExecutor ?? await database;
       final maps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
       if (maps.isEmpty) {
-        await _seedDefaults(db);
-        final seededMaps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
-        return seededMaps.map((m) => Team.fromMap(m)).toList();
+        final allTeams = await db.query('teams');
+        if (allTeams.isEmpty) {
+          await _seedDefaults(db);
+          final seededMaps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
+          return seededMaps.map((m) => Team.fromMap(m)).toList();
+        }
+        return [];
       }
       return maps.map((m) => Team.fromMap(m)).toList();
     } catch (_) {
-      final now = DateTime.now();
-      return [
-        Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_blue', name: 'Blue', color: 'Blue', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_green', name: 'Green', color: 'Green', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_yellow', name: 'Yellow', color: 'Yellow', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-        Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-        Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-      ];
+      return [];
     }
   }
 
@@ -368,11 +369,8 @@ class DatabaseHelper {
   Future<void> deleteTeam(String teamId, {Database? dbExecutor}) async {
     if (kIsWeb) {
       await _initWebStorage();
-      final idx = _webTeams!.indexWhere((t) => t.id == teamId);
-      if (idx != -1) {
-        _webTeams![idx] = _webTeams![idx].copyWith(isActive: false);
-        await _saveWebTeams();
-      }
+      _webTeams?.removeWhere((t) => t.id == teamId);
+      await _saveWebTeams();
       return;
     }
 
@@ -383,6 +381,26 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [teamId],
     );
+  }
+
+  Future<void> restoreDefaultTeams({Database? dbExecutor}) async {
+    if (kIsWeb) {
+      final now = DateTime.now();
+      _webTeams = [
+        Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_blue', name: 'Blue', color: 'Blue', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_green', name: 'Green', color: 'Green', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_yellow', name: 'Yellow', color: 'Yellow', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+      ];
+      await _saveWebTeams();
+      return;
+    }
+
+    final db = dbExecutor ?? await database;
+    await db.delete('teams');
+    await _seedDefaults(db);
   }
 
   Future<void> updateTeamScore({

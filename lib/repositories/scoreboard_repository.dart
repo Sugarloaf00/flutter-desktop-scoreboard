@@ -52,18 +52,6 @@ class ScoreboardRepository {
       rawTeams = await _dbHelper.getAllTeams();
     } catch (_) {}
 
-    if (rawTeams.isEmpty) {
-      final now = DateTime.now();
-      rawTeams = [
-        Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_blue', name: 'Blue', color: 'Blue', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_green', name: 'Green', color: 'Green', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
-        Team(id: 'team_yellow', name: 'Yellow', color: 'Yellow', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-        Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-        Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
-      ];
-    }
-
     if (!autoSort) {
       return rawTeams;
     }
@@ -138,6 +126,12 @@ class ScoreboardRepository {
   Future<void> deleteTeam(String teamId) async {
     try {
       await _dbHelper.deleteTeam(teamId);
+    } catch (_) {}
+  }
+
+  Future<void> restoreDefaultTeams() async {
+    try {
+      await _dbHelper.restoreDefaultTeams();
     } catch (_) {}
   }
 
