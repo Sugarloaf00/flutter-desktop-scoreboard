@@ -240,18 +240,29 @@ class _ScoreEditDialogState extends ConsumerState<ScoreEditDialog> {
 
               const SizedBox(height: 16),
 
-              // Quick Action Buttons (-10, -5, -1, +1, +5, +10)
+              // Rugby Scoring Actions
+              Text(
+                'RUGBY SCORING',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: const Color(0xFF94A3B8).withOpacity(0.8),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  QuickScoreButton(delta: -10, onPressed: () => _applyDelta(-10)),
-                  QuickScoreButton(delta: -5, onPressed: () => _applyDelta(-5)),
+                  QuickScoreButton(label: 'Try', delta: 5, color: const Color(0xFF10B981), onPressed: () => _applyDelta(5)),
+                  QuickScoreButton(label: 'Conv', delta: 2, color: const Color(0xFF38BDF8), onPressed: () => _applyDelta(2)),
+                  QuickScoreButton(label: 'Pen', delta: 3, color: const Color(0xFFF59E0B), onPressed: () => _applyDelta(3)),
+                  QuickScoreButton(label: 'Drop', delta: 3, color: const Color(0xFFA78BFA), onPressed: () => _applyDelta(3)),
                   QuickScoreButton(delta: -1, onPressed: () => _applyDelta(-1)),
                   QuickScoreButton(delta: 1, onPressed: () => _applyDelta(1)),
-                  QuickScoreButton(delta: 5, onPressed: () => _applyDelta(5)),
-                  QuickScoreButton(delta: 10, onPressed: () => _applyDelta(10)),
                 ],
               ),
 

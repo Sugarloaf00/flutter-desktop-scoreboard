@@ -4,6 +4,7 @@ import '../models/field_model.dart';
 import '../providers/scoreboard_providers.dart';
 import '../widgets/field_column.dart';
 import '../widgets/overall_leaderboard.dart';
+import '../widgets/rugby_scorekeeper_backend.dart';
 import '../animations/celebration_particles.dart';
 import 'admin_screen.dart';
 import 'presentation_screen.dart';
@@ -25,7 +26,7 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -140,7 +141,8 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
               unselectedLabelColor: const Color(0xFF64748B),
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               tabs: const [
-                Tab(text: 'Fields (A & B)'),
+                Tab(text: 'Scoreboard (Live)'),
+                Tab(text: 'Back End Scorer'),
                 Tab(text: 'Overall Standings'),
               ],
             ),
@@ -260,7 +262,13 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
                       ),
                     ),
 
-                    // Tab 2: Overall Standings
+                    // Tab 2: Back End Scorer
+                    RugbyScorekeeperBackend(
+                      fields: fields,
+                      teams: teams,
+                    ),
+
+                    // Tab 3: Overall Standings
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: OverallLeaderboard(

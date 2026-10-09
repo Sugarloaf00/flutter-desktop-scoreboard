@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_scoreboard_app/models/team.dart';
 import 'package:flutter_scoreboard_app/models/field_model.dart';
 import 'package:flutter_scoreboard_app/widgets/team_tile.dart';
 import 'package:flutter_scoreboard_app/widgets/field_column.dart';
 import 'package:flutter_scoreboard_app/widgets/quick_score_button.dart';
 import 'package:flutter_scoreboard_app/widgets/overall_leaderboard.dart';
+import 'package:flutter_scoreboard_app/widgets/rugby_scorekeeper_backend.dart';
 
 void main() {
   testWidgets('TeamTile renders team name, rank, color, and score correctly', (WidgetTester tester) async {
@@ -101,5 +103,32 @@ void main() {
     expect(find.text('OVERALL TOURNAMENT LEADER'), findsOneWidget);
     expect(find.text('Red Champion'), findsAtLeastNWidgets(1));
     expect(find.text('Total Score: 99 points'), findsOneWidget);
+  });
+
+  testWidgets('RugbyScorekeeperBackend renders rugby action buttons', (WidgetTester tester) async {
+    final now = DateTime.now();
+    const field = FieldModel(id: 'field_a', name: 'Field A');
+    final teams = [
+      Team(id: 't1', name: 'Springboks', color: 'Green', score: 12, fieldId: 'field_a', createdAt: now, updatedAt: now),
+      Team(id: 't2', name: 'All Blacks', color: 'Black', score: 10, fieldId: 'field_a', createdAt: now, updatedAt: now),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: RugbyScorekeeperBackend(
+              fields: const [field],
+              teams: teams,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Springboks'), findsWidgets);
+    expect(find.text('All Blacks'), findsWidgets);
+    expect(find.text('+5 Try'), findsWidgets);
+    expect(find.text('+2 Conv'), findsWidgets);
   });
 }

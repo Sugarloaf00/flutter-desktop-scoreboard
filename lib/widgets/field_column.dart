@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/team.dart';
 import '../models/field_model.dart';
+import '../utils/color_palette.dart';
 import '../utils/rank_calculator.dart';
+import '../animations/animated_score_counter.dart';
 import 'team_tile.dart';
+import 'score_edit_dialog.dart';
 
 class FieldColumn extends StatelessWidget {
   final FieldModel field;
@@ -51,7 +54,7 @@ class FieldColumn extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Minimal field dot indicator
+                // Field indicator dot
                 Container(
                   width: 8,
                   height: 8,
@@ -98,6 +101,11 @@ class FieldColumn extends StatelessWidget {
             ),
           ),
 
+          // Rugby 2-Team Match Banner (if field has 2 teams)
+          if (teams.length == 2) ...[
+            _buildRugbyMatchBanner(context, teams[0], teams[1]),
+          ],
+
           // Team List
           Expanded(
             child: teams.isEmpty
@@ -112,7 +120,7 @@ class FieldColumn extends StatelessWidget {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     itemCount: rankedFieldTeams.length,
                     itemBuilder: (context, index) {
                       final team = rankedFieldTeams[index];
@@ -123,6 +131,132 @@ class FieldColumn extends StatelessWidget {
                       );
                     },
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRugbyMatchBanner(BuildContext context, Team teamA, Team teamB) {
+    final colorA = ColorPalette.getColor(teamA.color);
+    final colorB = ColorPalette.getColor(teamB.color);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131D33),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF24334F)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          // Home / Team A
+          InkWell(
+            onTap: isInteractive
+                ? () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => ScoreEditDialog(team: teamA),
+                    );
+                  }
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: colorA, shape: BoxShape.circle)),
+                      const SizedBox(width: 6),
+                      Text(
+                        teamA.name.toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  AnimatedScoreCounter(
+                    score: teamA.score,
+                    duration: const Duration(milliseconds: 300),
+                    textStyle: const TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Center VS Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF334155)),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'RUGBY',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF38BDF8), letterSpacing: 1.0),
+                ),
+                Text(
+                  'VS',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+          ),
+
+          // Away / Team B
+          InkWell(
+            onTap: isInteractive
+                ? () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => ScoreEditDialog(team: teamB),
+                    );
+                  }
+                : null,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        teamB.name.toUpperCase(),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: colorB, shape: BoxShape.circle)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  AnimatedScoreCounter(
+                    score: teamB.score,
+                    duration: const Duration(milliseconds: 300),
+                    textStyle: const TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

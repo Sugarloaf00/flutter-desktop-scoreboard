@@ -1,13 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/team.dart';
-import '../models/field_model.dart';
-import '../models/app_settings.dart';
 import '../providers/scoreboard_providers.dart';
 import '../utils/color_palette.dart';
 import '../services/export_import_service.dart';
-import 'history_screen.dart';
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
