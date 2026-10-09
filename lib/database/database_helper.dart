@@ -1,9 +1,10 @@
-import 'dart:io' show Platform, Directory;
+import 'dart:convert';
+import 'dart:io' show Directory;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import '../models/team.dart';
 import '../models/field_model.dart';
 import '../models/score_history.dart';
@@ -11,6 +12,12 @@ import '../models/score_history.dart';
 class DatabaseHelper {
   static DatabaseHelper? _instance;
   static Database? _database;
+
+  // Web in-memory & SharedPreferences cache
+  static List<FieldModel>? _webFields;
+  static List<Team>? _webTeams;
+  static List<ScoreHistory>? _webHistory;
+  static Map<String, String>? _webSettings;
 
   DatabaseHelper._internal();
 
@@ -20,20 +27,96 @@ class DatabaseHelper {
   }
 
   static void initializeFfi() {
-    if (kIsWeb) {
-      databaseFactory = databaseFactoryFfiWeb;
-    } else {
+    if (!kIsWeb) {
       try {
-        if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-          sqfliteFfiInit();
-          databaseFactory = databaseFactoryFfi;
-        }
-      } catch (_) {
+        sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
-      }
+      } catch (_) {}
     }
   }
 
+  // ---------------- WEB STORAGE HELPERS ----------------
+  static Future<void> _initWebStorage() async {
+    if (_webFields != null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final fieldsJson = prefs.getString('web_fields');
+      if (fieldsJson != null) {
+        final List list = jsonDecode(fieldsJson);
+        _webFields = list.map((m) => FieldModel.fromMap(Map<String, dynamic>.from(m))).toList();
+      }
+
+      final teamsJson = prefs.getString('web_teams');
+      if (teamsJson != null) {
+        final List list = jsonDecode(teamsJson);
+        _webTeams = list.map((m) => Team.fromMap(Map<String, dynamic>.from(m))).toList();
+      }
+
+      final historyJson = prefs.getString('web_history');
+      if (historyJson != null) {
+        final List list = jsonDecode(historyJson);
+        _webHistory = list.map((m) => ScoreHistory.fromMap(Map<String, dynamic>.from(m))).toList();
+      }
+
+      final settingsJson = prefs.getString('web_settings');
+      if (settingsJson != null) {
+        _webSettings = Map<String, String>.from(jsonDecode(settingsJson));
+      }
+    } catch (_) {}
+
+    if (_webFields == null || _webFields!.isEmpty) {
+      _webFields = [
+        const FieldModel(id: 'field_a', name: 'Field A', displayOrder: 0),
+        const FieldModel(id: 'field_b', name: 'Field B', displayOrder: 1),
+      ];
+    }
+
+    if (_webTeams == null || _webTeams!.isEmpty) {
+      final now = DateTime.now();
+      _webTeams = [
+        Team(id: 'team_red', name: 'Red', color: 'Red', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_blue', name: 'Blue', color: 'Blue', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_green', name: 'Green', color: 'Green', score: 0, fieldId: 'field_a', createdAt: now, updatedAt: now),
+        Team(id: 'team_yellow', name: 'Yellow', color: 'Yellow', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_orange', name: 'Orange', color: 'Orange', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+        Team(id: 'team_purple', name: 'Purple', color: 'Purple', score: 0, fieldId: 'field_b', createdAt: now, updatedAt: now),
+      ];
+    }
+
+    _webHistory ??= [];
+    _webSettings ??= {};
+  }
+
+  static Future<void> _saveWebFields() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('web_fields', jsonEncode(_webFields!.map((f) => f.toMap()).toList()));
+    } catch (_) {}
+  }
+
+  static Future<void> _saveWebTeams() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('web_teams', jsonEncode(_webTeams!.map((t) => t.toMap()).toList()));
+    } catch (_) {}
+  }
+
+  static Future<void> _saveWebHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('web_history', jsonEncode(_webHistory!.map((h) => h.toMap()).toList()));
+    } catch (_) {}
+  }
+
+  static Future<void> _saveWebSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('web_settings', jsonEncode(_webSettings));
+    } catch (_) {}
+  }
+
+  // ---------------- SQLITE DESKTOP DATABASE ----------------
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
@@ -42,27 +125,6 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase({String dbName = 'scoreboard.db'}) async {
     initializeFfi();
-
-    if (kIsWeb) {
-      try {
-        return await databaseFactoryFfiWeb.openDatabase(
-          dbName,
-          options: OpenDatabaseOptions(
-            version: 1,
-            onCreate: _onCreate,
-          ),
-        );
-      } catch (e) {
-        // Fallback to in-memory on Web if indexedDB has restrictions
-        return await databaseFactoryFfiWeb.openDatabase(
-          inMemoryDatabasePath,
-          options: OpenDatabaseOptions(
-            version: 1,
-            onCreate: _onCreate,
-          ),
-        );
-      }
-    }
 
     String dbPath;
     try {
@@ -194,6 +256,11 @@ class DatabaseHelper {
 
   // ---------------- FIELDS CRUD ----------------
   Future<List<FieldModel>> getAllFields({Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      return List<FieldModel>.from(_webFields!);
+    }
+
     try {
       final db = dbExecutor ?? await database;
       final maps = await db.query('fields', orderBy: 'display_order ASC');
@@ -212,6 +279,16 @@ class DatabaseHelper {
   }
 
   Future<void> updateFieldName(String id, String newName, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      final index = _webFields!.indexWhere((f) => f.id == id);
+      if (index != -1) {
+        _webFields![index] = _webFields![index].copyWith(name: newName);
+        await _saveWebFields();
+      }
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.update(
       'fields',
@@ -223,6 +300,11 @@ class DatabaseHelper {
 
   // ---------------- TEAMS CRUD ----------------
   Future<List<Team>> getAllTeams({Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      return _webTeams!.where((t) => t.isActive).toList();
+    }
+
     try {
       final db = dbExecutor ?? await database;
       final maps = await db.query('teams', where: 'is_active = ?', whereArgs: [1]);
@@ -246,11 +328,31 @@ class DatabaseHelper {
   }
 
   Future<void> insertTeam(Team team, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      _webTeams!.removeWhere((t) => t.id == team.id);
+      _webTeams!.add(team);
+      await _saveWebTeams();
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.insert('teams', team.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> updateTeam(Team team, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      final idx = _webTeams!.indexWhere((t) => t.id == team.id);
+      if (idx != -1) {
+        _webTeams![idx] = team;
+      } else {
+        _webTeams!.add(team);
+      }
+      await _saveWebTeams();
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.update(
       'teams',
@@ -261,6 +363,16 @@ class DatabaseHelper {
   }
 
   Future<void> deleteTeam(String teamId, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      final idx = _webTeams!.indexWhere((t) => t.id == teamId);
+      if (idx != -1) {
+        _webTeams![idx] = _webTeams![idx].copyWith(isActive: false);
+        await _saveWebTeams();
+      }
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.update(
       'teams',
@@ -276,6 +388,37 @@ class DatabaseHelper {
     String? description,
     Database? dbExecutor,
   }) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      final idx = _webTeams!.indexWhere((t) => t.id == teamId);
+      if (idx != -1) {
+        final currentTeam = _webTeams![idx];
+        final previousScore = currentTeam.score;
+        final pointsChanged = newScore - previousScore;
+        final now = DateTime.now();
+
+        _webTeams![idx] = currentTeam.copyWith(
+          score: newScore,
+          updatedAt: now,
+        );
+
+        final historyEntry = ScoreHistory(
+          id: 'hist_${now.microsecondsSinceEpoch}',
+          teamId: teamId,
+          previousScore: previousScore,
+          newScore: newScore,
+          pointsChanged: pointsChanged,
+          timestamp: now,
+          description: description ?? (pointsChanged >= 0 ? 'Added $pointsChanged pts' : 'Deducted ${-pointsChanged} pts'),
+        );
+        _webHistory!.insert(0, historyEntry);
+
+        await _saveWebTeams();
+        await _saveWebHistory();
+      }
+      return;
+    }
+
     final db = dbExecutor ?? await database;
 
     await db.transaction((txn) async {
@@ -310,6 +453,33 @@ class DatabaseHelper {
   }
 
   Future<void> resetAllScores({Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      final now = DateTime.now();
+      for (int i = 0; i < _webTeams!.length; i++) {
+        final t = _webTeams![i];
+        if (t.isActive && t.score != 0) {
+          final prev = t.score;
+          _webTeams![i] = t.copyWith(score: 0, updatedAt: now);
+          _webHistory!.insert(
+            0,
+            ScoreHistory(
+              id: 'hist_reset_${t.id}_${now.microsecondsSinceEpoch}',
+              teamId: t.id,
+              previousScore: prev,
+              newScore: 0,
+              pointsChanged: -prev,
+              timestamp: now,
+              description: 'Reset all scores',
+            ),
+          );
+        }
+      }
+      await _saveWebTeams();
+      await _saveWebHistory();
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     final now = DateTime.now();
 
@@ -343,6 +513,11 @@ class DatabaseHelper {
 
   // ---------------- SCORE HISTORY CRUD ----------------
   Future<List<ScoreHistory>> getScoreHistory({int limit = 100, Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      return _webHistory!.take(limit).toList();
+    }
+
     try {
       final db = dbExecutor ?? await database;
       final maps = await db.query(
@@ -357,12 +532,26 @@ class DatabaseHelper {
   }
 
   Future<void> clearScoreHistory({Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      _webHistory!.clear();
+      await _saveWebHistory();
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.delete('score_history');
   }
 
   // ---------------- SETTINGS ----------------
   Future<void> saveSetting(String key, String value, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      _webSettings![key] = value;
+      await _saveWebSettings();
+      return;
+    }
+
     final db = dbExecutor ?? await database;
     await db.insert(
       'settings',
@@ -372,6 +561,11 @@ class DatabaseHelper {
   }
 
   Future<String?> getSetting(String key, {Database? dbExecutor}) async {
+    if (kIsWeb) {
+      await _initWebStorage();
+      return _webSettings?[key];
+    }
+
     try {
       final db = dbExecutor ?? await database;
       final res = await db.query('settings', where: 'key = ?', whereArgs: [key]);
