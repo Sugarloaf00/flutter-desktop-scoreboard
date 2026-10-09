@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper validation functions
+    function isValidScore() {
+      return request.resource.data.score is int || request.resource.data.score is float;
+    }
+
+    function isValidTeam() {
+      return request.resource.data.keys().hasAll(['name', 'color', 'score', 'fieldId'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 64
+        && request.resource.data.color is string
+        && isValidScore();
+    }
+
+    // Teams collection - readable by all live scoreboard viewers, writable with validation
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create, update: if isValidTeam();
+      allow delete: if true;
+    }
+
+    // Fields collection (Field A, Field B)
+    match /fields/{fieldId} {
+      allow read: if true;
+      allow write: if request.resource.data.name is string;
+    }
+
+    // Score change history log
+    match /score_history/{historyId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['teamId', 'pointsChanged', 'timestamp']);
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // Scoreboard App Settings (negative scores, sound, sorting)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

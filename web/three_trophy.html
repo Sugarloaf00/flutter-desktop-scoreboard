@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Scoreboard Trophy Visualizer</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+  <!-- Three.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 6;
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    // Golden Trophy Materials
+    const goldMaterial = new THREE.MeshStandardMaterial({
+      color: 0xFFD700,
+      metalness: 0.85,
+      roughness: 0.25,
+      emissive: 0x443300
+    });
+
+    const trophyGroup = new THREE.Group();
+
+    // Trophy Cup Body
+    const cupGeom = new THREE.CylinderGeometry(1.2, 0.4, 1.8, 32, 1, true);
+    const cup = new THREE.Mesh(cupGeom, goldMaterial);
+    cup.position.y = 0.5;
+    trophyGroup.add(cup);
+
+    // Cup Base / Stem
+    const stemGeom = new THREE.CylinderGeometry(0.15, 0.2, 0.9, 16);
+    const stem = new THREE.Mesh(stemGeom, goldMaterial);
+    stem.position.y = -0.6;
+    trophyGroup.add(stem);
+
+    // Pedestal
+    const baseGeom = new THREE.CylinderGeometry(0.9, 1.1, 0.5, 32);
+    const darkWood = new THREE.MeshStandardMaterial({ color: 0x221100, roughness: 0.5 });
+    const base = new THREE.Mesh(baseGeom, darkWood);
+    base.position.y = -1.1;
+    trophyGroup.add(base);
+
+    // Handles
+    const handleGeom = new THREE.TorusGeometry(0.6, 0.08, 16, 32, Math.PI);
+    const handleLeft = new THREE.Mesh(handleGeom, goldMaterial);
+    handleLeft.position.set(-0.9, 0.6, 0);
+    handleLeft.rotation.z = Math.PI / 2;
+    trophyGroup.add(handleLeft);
+
+    const handleRight = new THREE.Mesh(handleGeom, goldMaterial);
+    handleRight.position.set(0.9, 0.6, 0);
+    handleRight.rotation.z = -Math.PI / 2;
+    trophyGroup.add(handleRight);
+
+    scene.add(trophyGroup);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight1.position.set(5, 8, 5);
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0xffaa00, 0.8);
+    dirLight2.position.set(-5, -3, -2);
+    scene.add(dirLight2);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      trophyGroup.rotation.y += 0.018;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
