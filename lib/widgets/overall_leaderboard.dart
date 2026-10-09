@@ -26,64 +26,58 @@ class OverallLeaderboard extends StatelessWidget {
       children: [
         if (overallWinner != null)
           Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF312E81), Color(0xFF1E1B4B)],
+              color: const Color(0xFF131D33),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFFFD700).withOpacity(0.5),
+                width: 1.5,
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFFD700), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFFD700).withOpacity(0.3),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                ),
-              ],
             ),
             child: Row(
               children: [
                 const SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: ThreeDTrophyWidget(size: 90),
+                  width: 64,
+                  height: 64,
+                  child: ThreeDTrophyWidget(size: 64),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 22),
+                          const Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 18),
                           const SizedBox(width: 6),
-                          Text(
+                          const Text(
                             'OVERALL TOURNAMENT LEADER',
                             style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
-                              color: const Color(0xFFFFD700),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                              color: Color(0xFFFFD700),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         overallWinner.name,
                         style: const TextStyle(
-                          fontSize: 26,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
                       ),
                       Text(
                         'Total Score: ${overallWinner.score} points',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF94A3B8),
                         ),
                       ),
                     ],
@@ -99,7 +93,7 @@ class OverallLeaderboard extends StatelessWidget {
             itemBuilder: (context, index) {
               final team = rankedAll[index];
               return TeamTile(
-                key: ValueKey(team.id),
+                key: ValueKey('overall_${team.id}'),
                 team: team,
                 isInteractive: isInteractive,
               );

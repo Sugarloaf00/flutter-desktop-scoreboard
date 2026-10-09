@@ -20,22 +20,17 @@ class FieldColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort teams specifically within this field
     final rankedFieldTeams = RankCalculator.calculateRanks(teams);
-    final fieldLeader = rankedFieldTeams.isNotEmpty && rankedFieldTeams.first.score > 0
-        ? rankedFieldTeams.first
-        : null;
-
     final isFieldA = field.id == 'field_a';
     final accentColor = isFieldA ? const Color(0xFF38BDF8) : const Color(0xFFA78BFA);
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: accentColor.withOpacity(0.35),
-          width: 1.5,
+          color: const Color(0xFF1E293B),
+          width: 1,
         ),
       ),
       child: Column(
@@ -43,62 +38,59 @@ class FieldColumn extends StatelessWidget {
         children: [
           // Header Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.15),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              color: const Color(0xFF131D33),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              border: Border(
+                bottom: BorderSide(
+                  color: accentColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  isFieldA ? Icons.sports_tennis : Icons.stadium,
-                  color: accentColor,
-                  size: 26,
+                // Minimal field dot indicator
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        field.name.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      if (fieldLeader != null)
-                        Text(
-                          'Leader: ${fieldLeader.name} (${fieldLeader.score} pts)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: accentColor,
-                          ),
-                        ),
-                    ],
+                  child: Text(
+                    field.name.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 if (onRename != null && isInteractive)
                   IconButton(
-                    icon: const Icon(Icons.edit, size: 18),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    color: const Color(0xFF94A3B8),
                     tooltip: 'Rename ${field.name}',
                     onPressed: onRename,
                   ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF1E293B),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${teams.length} teams',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF94A3B8),
                     ),
                   ),
                 ),
@@ -113,14 +105,14 @@ class FieldColumn extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: Text(
-                        'No teams assigned to ${field.name}.\nAssign teams in the Admin Panel.',
+                        'No teams assigned to ${field.name}.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade500),
+                        style: const TextStyle(color: Color(0xFF64748B)),
                       ),
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    padding: const EdgeInsets.all(8),
                     itemCount: rankedFieldTeams.length,
                     itemBuilder: (context, index) {
                       final team = rankedFieldTeams[index];

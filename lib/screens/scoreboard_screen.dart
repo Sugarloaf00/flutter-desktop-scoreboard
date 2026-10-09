@@ -46,19 +46,22 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Rename Field ($currentName)'),
+        backgroundColor: const Color(0xFF131B2E),
+        title: Text('Rename Field ($currentName)', style: const TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
           autofocus: true,
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             labelText: 'Field Name',
+            labelStyle: TextStyle(color: Color(0xFF94A3B8)),
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
           ),
           ElevatedButton(
             onPressed: () {
@@ -93,44 +96,70 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF090D16),
       appBar: AppBar(
+        backgroundColor: const Color(0xFF0F172A),
+        elevation: 0,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: const Color(0xFF3B82F6).withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.scoreboard_outlined, size: 24),
+              child: const Icon(Icons.scoreboard_rounded, color: Color(0xFF38BDF8), size: 22),
             ),
             const SizedBox(width: 12),
             const Text(
-              'Desktop Scoreboard',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(width: 16),
-            if (overallLeader != null)
-              Chip(
-                avatar: const Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 18),
-                label: Text(
-                  'Leader: ${overallLeader.name} (${overallLeader.score} pts)',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                backgroundColor: const Color(0xFFFFD700).withOpacity(0.18),
+              'Scoreboard',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: Colors.white,
               ),
+            ),
           ],
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.view_column_outlined), text: 'Field A & Field B'),
-            Tab(icon: Icon(Icons.leaderboard_outlined), text: 'Overall Standings'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFF1E293B), width: 1)),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              indicatorColor: const Color(0xFF38BDF8),
+              indicatorWeight: 3,
+              labelColor: const Color(0xFF38BDF8),
+              unselectedLabelColor: const Color(0xFF64748B),
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              tabs: const [
+                Tab(text: 'Fields (A & B)'),
+                Tab(text: 'Overall Standings'),
+              ],
+            ),
+          ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.tv, size: 20),
+            color: const Color(0xFF94A3B8),
+            tooltip: 'Live Presentation Mode',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PresentationScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.history, size: 20),
+            color: const Color(0xFF94A3B8),
             tooltip: 'Score History',
             onPressed: () {
               Navigator.of(context).push(
@@ -139,17 +168,9 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
             },
           ),
           IconButton(
-            icon: const Icon(Icons.tv),
-            tooltip: 'Live Presentation Mode (Full Screen)',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PresentationScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings),
-            tooltip: 'Administrator Controls',
+            icon: const Icon(Icons.settings_outlined, size: 20),
+            color: const Color(0xFF94A3B8),
+            tooltip: 'Settings & Admin',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const AdminScreen()),
@@ -163,11 +184,11 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
         isTriggered: _showCelebration,
         child: fieldsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Error loading fields: $err')),
+          error: (err, _) => Center(child: Text('Error loading fields: $err', style: const TextStyle(color: Colors.white))),
           data: (fields) {
             return teamsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error loading teams: $err')),
+              error: (err, _) => Center(child: Text('Error loading teams: $err', style: const TextStyle(color: Colors.white))),
               data: (teams) {
                 final fieldA = fields.firstWhere(
                   (f) => f.id == 'field_a',
@@ -184,12 +205,11 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
                 return TabBarView(
                   controller: _tabController,
                   children: [
-                    // Tab 1: Field A and Field B Columns
+                    // Tab 1: Field A and Field B
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          // Side-by-side if screen width is >= 768px, stacked otherwise
                           if (constraints.maxWidth >= 768) {
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,7 +236,7 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
                               child: Column(
                                 children: [
                                   SizedBox(
-                                    height: 400,
+                                    height: 380,
                                     child: FieldColumn(
                                       field: fieldA,
                                       teams: teamsFieldA,
@@ -225,7 +245,7 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
                                   ),
                                   const SizedBox(height: 16),
                                   SizedBox(
-                                    height: 400,
+                                    height: 380,
                                     child: FieldColumn(
                                       field: fieldB,
                                       teams: teamsFieldB,
@@ -240,7 +260,7 @@ class _ScoreboardScreenState extends ConsumerState<ScoreboardScreen>
                       ),
                     ),
 
-                    // Tab 2: Overall Leaderboard
+                    // Tab 2: Overall Standings
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: OverallLeaderboard(

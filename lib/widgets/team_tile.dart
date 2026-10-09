@@ -1,12 +1,15 @@
+import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/team.dart';
+import '../providers/scoreboard_providers.dart';
 import '../utils/color_palette.dart';
 import '../utils/rank_calculator.dart';
 import '../animations/animated_score_counter.dart';
 import '../animations/winner_glow.dart';
 import 'score_edit_dialog.dart';
 
-class TeamTile extends StatefulWidget {
+class TeamTile extends ConsumerStatefulWidget {
   final Team team;
   final bool isInteractive;
   final double scoreScale;
@@ -19,10 +22,10 @@ class TeamTile extends StatefulWidget {
   });
 
   @override
-  State<TeamTile> createState() => _TeamTileState();
+  ConsumerState<TeamTile> createState() => _TeamTileState();
 }
 
-class _TeamTileState extends State<TeamTile> {
+class _TeamTileState extends ConsumerState<TeamTile> {
   bool _isHovered = false;
 
   void _openEditDialog() {
@@ -33,104 +36,117 @@ class _TeamTileState extends State<TeamTile> {
     );
   }
 
+  void _quickAdjust(int delta) {
+    if (!widget.isInteractive) return;
+    try {
+      ref.read(teamsProvider.notifier).adjustScore(
+        teamId: widget.team.id,
+        delta: delta,
+        description: delta > 0 ? 'Quick +$delta' : 'Quick $delta',
+      );
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     final teamColor = ColorPalette.getColor(widget.team.color);
-    final contrastTextColor = ColorPalette.getContrastTextColor(teamColor);
     final isLeader = (widget.team.rank == 1) && (widget.team.score > 0);
     final rankDelta = RankCalculator.getRankMovement(widget.team);
 
-    final tileContent = AnimatedScale(
-      scale: _isHovered && widget.isInteractive ? 1.02 : 1.0,
+    final tileContent = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      decoration: BoxDecoration(
+        color: _isHovered && widget.isInteractive
+            ? const Color(0xFF1E293B)
+            : const Color(0xFF141C2E),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isLeader
+              ? const Color(0xFFFFD700).withOpacity(0.8)
+              : _isHovered && widget.isInteractive
+                  ? teamColor.withOpacity(0.5)
+                  : const Color(0xFF243049),
+          width: isLeader ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           onTap: widget.isInteractive ? _openEditDialog : null,
           onHover: (hover) => setState(() => _isHovered = hover),
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              gradient: ColorPalette.getCardGradient(teamColor),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: teamColor.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-              border: Border.all(
-                color: isLeader ? const Color(0xFFFFD700) : Colors.white.withOpacity(0.2),
-                width: isLeader ? 2.5 : 1.0,
-              ),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                // Rank Badge & Movement Indicator
+                // Minimal vertical color accent bar
                 Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
+                  width: 5,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                    border: isLeader
-                        ? Border.all(color: const Color(0xFFFFD700), width: 2)
-                        : null,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (isLeader)
-                        const Positioned(
-                          top: 1,
-                          child: Icon(Icons.workspace_premium, color: Color(0xFFFFD700), size: 14),
-                        ),
-                      Padding(
-                        padding: EdgeInsets.only(top: isLeader ? 10 : 0),
-                        child: Text(
-                          widget.team.rank != null ? '#${widget.team.rank}' : '-',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isLeader ? const Color(0xFFFFD700) : contrastTextColor,
-                          ),
-                        ),
+                    color: teamColor,
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: teamColor.withOpacity(0.6),
+                        blurRadius: 6,
+                        spreadRadius: 0.5,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Rank Badge
+                Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isLeader
+                        ? const Color(0xFFFFD700).withOpacity(0.18)
+                        : const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isLeader
+                          ? const Color(0xFFFFD700).withOpacity(0.5)
+                          : const Color(0xFF334155),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    widget.team.rank != null ? '#${widget.team.rank}' : '-',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isLeader
+                          ? const Color(0xFFFFD700)
+                          : const Color(0xFF94A3B8),
+                    ),
                   ),
                 ),
 
                 const SizedBox(width: 8),
 
-                // Movement indicator icon (up/down/same)
+                // Movement Indicator (up/down)
                 if (rankDelta != 0)
-                  Tooltip(
-                    message: rankDelta > 0
-                        ? 'Gained $rankDelta position${rankDelta > 1 ? "s" : ""}'
-                        : 'Lost ${-rankDelta} position${-rankDelta > 1 ? "s" : ""}',
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: (rankDelta > 0 ? Colors.green : Colors.red).withOpacity(0.85),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        rankDelta > 0 ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
+                  Icon(
+                    rankDelta > 0 ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                    color: rankDelta > 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                    size: 20,
                   )
                 else
-                  const SizedBox(width: 18),
+                  const SizedBox(width: 12),
 
-                const SizedBox(width: 12),
-
-                // Team Name
+                // Team Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,73 +157,77 @@ class _TeamTileState extends State<TeamTile> {
                           Flexible(
                             child: Text(
                               widget.team.name,
-                              style: TextStyle(
-                                fontSize: 20,
+                              style: const TextStyle(
+                                fontSize: 17,
                                 fontWeight: FontWeight.bold,
-                                color: contrastTextColor,
-                                letterSpacing: 0.5,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (isLeader) ...[
                             const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFD700),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'LEADER',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.black,
-                                ),
-                              ),
+                            const Icon(
+                              Icons.emoji_events,
+                              size: 15,
+                              color: Color(0xFFFFD700),
                             ),
                           ],
                         ],
                       ),
                       Text(
                         'Team ${widget.team.color}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: contrastTextColor.withOpacity(0.8),
+                          color: Color(0xFF94A3B8),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // Large Animated Score
+                // Quick Inline +/- Actions (interactive)
+                if (widget.isInteractive) ...[
+                  IconButton(
+                    icon: const Icon(Icons.remove, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFFCBD5E1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    tooltip: '-1 pt',
+                    onPressed: () => _quickAdjust(-1),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.add, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFFCBD5E1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    tooltip: '+1 pt',
+                    onPressed: () => _quickAdjust(1),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+
+                // Score Display
                 AnimatedScoreCounter(
                   score: widget.team.score,
-                  duration: const Duration(milliseconds: 350),
+                  duration: const Duration(milliseconds: 300),
                   textStyle: TextStyle(
-                    fontSize: 36 * widget.scoreScale,
+                    fontSize: 32 * widget.scoreScale,
                     fontWeight: FontWeight.w900,
-                    color: contrastTextColor,
+                    color: Colors.white,
                     fontFeatures: const [FontFeature.tabularFigures()],
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withOpacity(0.4),
-                        offset: const Offset(1, 1),
-                        blurRadius: 4,
-                      ),
-                    ],
                   ),
                 ),
-
-                if (widget.isInteractive) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.edit_note,
-                    color: contrastTextColor.withOpacity(0.7),
-                    size: 24,
-                  ),
-                ],
               ],
             ),
           ),
